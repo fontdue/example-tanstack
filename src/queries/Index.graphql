@@ -1,0 +1,24 @@
+query Index {
+  viewer {
+    fontCollections(onlyRoots: true, first: 99) {
+      edges {
+        node {
+          id
+          name
+          collectionType
+          isNew
+          opticalAdjustment
+          slug { name }
+          featureStyle {
+            cssFamily
+            name
+            webfontSources {
+              format
+              url
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+query Font($slug: String!) {
+  viewer {
+    slug(name: $slug) {
+      fontCollection {
+        id
+        name
+        collectionType
+        shortDescription
+        description
+        minisiteLink
+        featureStyle {
+          cssFamily
+          name
+          webfontSources {
+            format
+            url
+          }
+        }
+        images {
+          url
+          description
+          meta {
+            mimeType
+            width
+            height
+          }
+        }
+        pageMetadata {
+          title
+          description
+        }
+      }
+    }
+  }
+}

@@ -1,193 +1,170 @@
-Welcome to your new TanStack Start app! 
+# fontdue-js on TanStack Start
 
-# Getting Started
+A working example of using [fontdue-js](https://www.npmjs.com/package/fontdue-js) in a [TanStack Start](https://tanstack.com/start) SSR app — no client-side query refetch on hydration, no theming flash, no per-island duplicate fetches.
 
-To run this application:
+This is one of the integration POCs for the framework-agnostic preload API (Linear FD-537). The same pattern works in any React-rendering SSR framework (Astro, React Router 7, Vike, Remix, etc.).
 
-```bash
+## What it demonstrates
+
+- TypeTester islands server-rendered and hydrating without a refetch.
+- The unified TypeTester entry (`fontdue-js/TypeTester`) used directly from a route loader — same import path for both the loader (`loadTypeTesterQuery`) and the component (default export).
+- Backend URL configured once via `VITE_FONTDUE_URL`. No URL passed at the call site.
+- Direct GraphQL fetches from route loaders alongside the fontdue-js preload helpers (`src/lib/graphql.ts` + `src/queries/*.graphql`) — equivalent to the `async function` pattern in the Next.js App Router example, the `loader` pattern in the React Router 7 example, and the frontmatter pattern in the Astro example.
+- CDN stale-while-revalidate caching on Netlify with on-demand purge via `/api/revalidate`.
+- Tailwind for styling — page chrome uses utility classes; inline styles only where values come from the API (font-family, optical-adjustment, hero image dimensions).
+
+## Setup
+
+```sh
+cp .env.example .env
 npm install
 npm run dev
 ```
 
-# Building For Production
+Open <http://localhost:3000>.
 
-To build this application for production:
+The default `.env.example` points at `https://example.fontdue.xyz`, which has CORS allow-listed `http://localhost:3000`. Point `VITE_FONTDUE_URL` at your own tenant if you have one — the client origin will need to be in your tenant's allowed origins. If port 3000 is taken and Vite bumps to a higher port, the client-side Relay subscriptions will fail CORS until your tenant allow-lists the new port.
 
-```bash
-npm run build
-```
+## How the integration is wired
 
-## Testing
+Three files do the work:
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+- **`.env`** — `VITE_FONTDUE_URL` is the tenant origin. The `VITE_` prefix exposes it to client code (Vite convention); fontdue-js auto-reads `PUBLIC_FONTDUE_URL` / `VITE_FONTDUE_URL` from `import.meta.env` on both server and client. No explicit `configure()` call needed.
 
-```bash
-npm run test
-```
+- **`src/routes/__root.tsx`** — the layout-level data layer. Its `loader` runs `loadFontdueProviderQuery()` (theme/test-mode/tracking aux UI), `loadCartButtonQuery()` (cart count), and `fetchGraphql<RootLayoutQuery>(…)` (logo, nav pages, footer text, UI font, settings) in one `Promise.all`. The `<FontdueProvider preloadedQuery={…}>` commits the aux payload into the shared client Relay env on hydration so theme/banner/tracking render with no flash and no refetch. `<StoreModal>` is mounted with **no** `preloadedQuery` — the modal is closed at SSR; cart data fetches lazily on open. Don't add a preload there.
 
-## Styling
+  The same root file owns the page chrome: `head()` returns meta/links, `shellComponent` renders the `<html>` document, `component` renders the in-body layout (`<FontdueProvider>` → header → `<Outlet />` → footer), and `notFoundComponent` renders inside that layout when a child route throws `notFound()`.
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+- **`src/routes/index.tsx`** — per-page component preloads via `createFileRoute('/').loader`:
 
-### Removing Tailwind CSS
-
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `npm install @tailwindcss/vite tailwindcss -D`
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
+  ```ts
+  export const Route = createFileRoute('/')({
+    loader: async () => {
+      const indexData = await fetchGraphql<IndexQuery>('Index', IndexDoc);
+      const collections = /* …extract from indexData… */;
+      const testerPreloads = await Promise.all(
+        testerCollections.map((c) =>
+          loadTypeTesterQuery({
+            familyName: c.featureStyle!.cssFamily!,
+            styleName: c.featureStyle!.name!,
+          }),
+        ),
+      );
+      return { collections, testerCollections, testerPreloads };
     },
-  },
-})
-```
+    component: Home,
+  });
+  ```
 
-## Data Fetching
+  The component then reads loader data via `Route.useLoaderData()` and renders `<TypeTester preloadedQuery={preload} content="…" fontSize={48} />`. `loadTypeTesterQuery` runs in the route loader (server during SSR). `<TypeTester>` server-renders as HTML, then hydrates with the preloaded payload — no network call on hydration. Multiple islands on the same page share one Relay env + one Redux store via module-level singletons.
 
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
+## Querying the Fontdue GraphQL API directly
 
-For example:
+Aside from the preload helpers, you can query `viewer { … }` from a route loader the same way the Astro example queries it from frontmatter or the Next.js example queries it from a server component. Three pieces:
 
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
+- **`src/lib/graphql.ts`** — a 25-line `fetchGraphql<Q, V>(name, query, variables)` helper. `import.meta.env.VITE_FONTDUE_URL` provides the endpoint, so there's no hard-coded URL.
 
-export const Route = createFileRoute('/people')({
+- **`src/queries/*.graphql`** — query documents (`RootLayout`, `Index`, `Font`). Imported with Vite's `?raw` suffix so the string is inlined at build time:
+
+  ```ts
+  import IndexDoc from '../queries/Index.graphql?raw';
+  ```
+
+- **`src/queries/operations-types.ts`** — generated by `@graphql-codegen/cli` from the `.graphql` documents and the live schema (config in `codegen.ts`). `npm run dev` runs codegen in `--watch` alongside `vite dev` (via `npm-run-all`), so editing a `.graphql` file regenerates types automatically. `npm run codegen` is the one-shot equivalent. The file is committed so contributors don't need a tenant URL just to type-check. The `fetchGraphql` helper takes the response and variables types as generics:
+
+  ```ts
+  fetchGraphql<FontQuery, FontQueryVariables>('Font', FontDoc, { slug });
+  ```
+
+Calling it from a route loader:
+
+```ts
+export const Route = createFileRoute('/')({
   loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
+    const data = await fetchGraphql<IndexQuery>('Index', IndexDoc);
+    const collections = data.viewer.fontCollections?.edges
+      ?.flatMap((edge) => edge?.node ? [edge.node] : []) ?? [];
+    return { collections };
   },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
+  component: Home,
+});
 ```
 
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
+Run the GraphQL fetch and the fontdue-js preload helpers in the same `Promise.all` so the entire page costs one network round-trip:
 
-# Demo files
+```ts
+const [layoutData, fontduePreload, cartPreload] = await Promise.all([
+  fetchGraphql<RootLayoutQuery>('RootLayout', RootLayoutDoc),
+  loadFontdueProviderQuery(),
+  loadCartButtonQuery(),
+]);
+```
 
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
+Three routes use this pattern: `src/routes/__root.tsx` (logo, nav, settings), `src/routes/index.tsx` (collections list + preloaded testers for the first two), and `src/routes/fonts.$slug.tsx` (font detail name/description/hero alongside `<TypeTesters>` / `<CharacterViewer>` / `<BuyButton>` islands).
 
-# Learn More
+## Required Vite SSR config
 
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
+`vite.config.ts` includes one fontdue-js-specific line:
 
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+```ts
+import fontdueJs from 'fontdue-js/vite';
+
+export default defineConfig({
+  plugins: [
+    devtools(),
+    netlify(),
+    tailwindcss(),
+    tanstackStart(),
+    viteReact(),
+    fontdueJs(),
+  ],
+});
+```
+
+**Why:** fontdue-js publishes per-file ESM (no bundler at our publish step). Some of its transitive deps (`react-relay`, `relay-runtime`, `draft-js`, `fbjs`) are CJS and use `module.exports = require('./lib')` re-export shapes that defeat strict ESM named-import resolution in both Node SSR and browser contexts. The `fontdueJs()` plugin wires up `vite-plugin-cjs-interop`, `ssr.noExternal: ['fontdue-js']`, `optimizeDeps.include`, and `define: { global: 'globalThis' }` to make those work.
+
+## Deploying to Netlify
+
+This example is wired for Netlify SSR via `@netlify/vite-plugin-tanstack-start`, which writes `.netlify/v1/functions/server.mjs` at build time. Netlify deploys that as the SSR request handler. (Netlify's framework auto-detection identifies TanStack Start but does *not* wire up the function on its own — the plugin is required.)
+
+To deploy a fork:
+
+1. **Build settings** (Netlify UI):
+   - Build command: `npm run build`
+   - Publish directory: `dist/client`
+   - Functions directory: leave blank — the plugin writes to `.netlify/v1/functions/` automatically.
+2. **Environment variables**: add `VITE_FONTDUE_URL` under Site configuration → Environment variables. `VITE_*` vars are inlined at build time, so it must be set before the first build runs. Also set `REVALIDATE_TOKEN` to a long random string — required by `/api/revalidate` (see below).
+3. **CORS allow-list**: once Netlify gives you the deploy URL (e.g. `https://your-site.netlify.app`), add it to your Fontdue tenant's allowed origins. If you want PR previews to work, allow-list the `https://deploy-preview-*--your-site.netlify.app` pattern too.
+
+## Caching and revalidation
+
+Pages are SSR but cached on Netlify's CDN with stale-while-revalidate, so requests after the first one are served from the edge in milliseconds. The root route's loader sets the cache headers via a server-only function:
+
+```
+Netlify-CDN-Cache-Control: public, max-age=0, s-maxage=300, stale-while-revalidate=86400
+Netlify-Cache-Tag: fontdue
+```
+
+The header set is wrapped in `createServerFn` so it runs only during SSR — TanStack Start route loaders run on both server (initial render) and client (subsequent navigation), and there's no response object to mutate from the client. Sequencing the server fn into the same `Promise.all` as the data fetches keeps total latency flat.
+
+After the SWR window the edge serves the stale copy and regenerates in the background — the user never waits for the upstream GraphQL call. To force a refresh on demand (e.g. when fonts change in your Fontdue admin), `src/routes/api.revalidate.ts` validates the `token` query param against `REVALIDATE_TOKEN` and calls Netlify's `purgeCache({ tags: ['fontdue'] })`. The route uses `createFileRoute('/api/revalidate')({ server: { handlers: { POST } } })` — TanStack Start's API-route shape — and returns a `Response` with `Cache-Control: no-store` so the API endpoint itself isn't cached.
+
+Wire it up in Fontdue: **Website settings → Deploy hook URL**. Paste:
+
+```
+https://your-site.netlify.app/api/revalidate?token=YOUR_REVALIDATE_TOKEN
+```
+
+Fontdue will `POST` to this URL whenever you publish changes; cached HTML on Netlify's edge is invalidated and the next request regenerates against fresh data.
+
+Today the Fontdue API doesn't include a collection id/slug in the deploy-hook payload, so every page is purged together. If/when it does, switch to per-collection tags (`fontdue:${slug}`) and purge selectively.
+
+## TanStack Start requirements
+
+- File-based routing under `src/routes/` (`mode: "file-router"` in `.cta.json`). Routes use TanStack's flat dot notation: `fonts.$slug.tsx` → `/fonts/$slug`, `api.revalidate.ts` → `/api/revalidate`.
+- TanStack Start with the Vite plugin (`@tanstack/react-start/plugin/vite`).
+- `defaultPreload: 'intent'` is set in `src/router.tsx` — links prefetch on hover so transitions feel instant.
+
+## Status
+
+This example tracks `fontdue-js@3.0.0-alpha3`, an early prerelease of the framework-agnostic preload API (Linear FD-537). The 3.x line is alpha until the surface stabilizes — pin a specific version while we iterate.
