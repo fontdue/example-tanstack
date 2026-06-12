@@ -12,7 +12,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { setResponseHeaders } from '@tanstack/react-start/server'
 import FontdueProvider, { loadFontdueProviderQuery } from 'fontdue-js/FontdueProvider'
 import StoreModal from 'fontdue-js/StoreModal'
-import CartButton, { loadCartButtonQuery } from 'fontdue-js/CartButton'
+import CartButton from 'fontdue-js/CartButton'
 
 import appCss from '../styles.css?url'
 import 'fontdue-js/fontdue.css'
@@ -49,13 +49,12 @@ export const Route = createRootRoute({
   // settings). The server-only header call is sequenced alongside the
   // fetches via Promise.all to keep latency flat.
   loader: async () => {
-    const [, fontduePreload, cartPreload, layoutData] = await Promise.all([
+    const [, fontduePreload, layoutData] = await Promise.all([
       setCdnCacheHeaders(),
       loadFontdueProviderQuery(),
-      loadCartButtonQuery(),
       fetchGraphql<RootLayoutQuery>('RootLayout', RootLayoutDoc),
     ])
-    return { fontduePreload, cartPreload, layoutData }
+    return { fontduePreload, layoutData }
   },
   head: () => ({
     meta: [
@@ -105,7 +104,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  const { fontduePreload, cartPreload, layoutData } = Route.useLoaderData()
+  const { fontduePreload, layoutData } = Route.useLoaderData()
   const { viewer } = layoutData
   const settings = viewer.settings
   const pages =
@@ -142,7 +141,6 @@ function RootComponent() {
         viewer={viewer}
         pages={pages}
         moreThanOneCollection={moreThanOneCollection}
-        cartPreload={cartPreload}
       />
       <main className="mx-auto max-w-3xl p-8 font-sans">
         <Outlet />
@@ -161,7 +159,6 @@ function SiteHeader({
   viewer,
   pages,
   moreThanOneCollection,
-  cartPreload,
 }: {
   viewer: RootLayoutQuery['viewer']
   pages: NonNullable<
@@ -170,7 +167,6 @@ function SiteHeader({
     >[number]
   >['node'][]
   moreThanOneCollection: boolean
-  cartPreload: Awaited<ReturnType<typeof loadCartButtonQuery>>
 }) {
   const { pathname } = useLocation()
   const isActive = (href: string) => pathname === href
@@ -218,7 +214,7 @@ function SiteHeader({
           Test fonts
         </Link>
       </nav>
-      <CartButton preloadedQuery={cartPreload} suffix=" ({count})" />
+      <CartButton suffix=" ({count})" />
     </header>
   )
 }
