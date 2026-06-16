@@ -37,6 +37,8 @@ export enum CollectionType {
 export type CreateLibraryStripeCheckoutSessionInput = {
   /** Which Stripe subscription billing period? "month" or "year". Only used when creating a new subscription. */
   billingPeriod: InputMaybe<Scalars['String']['input']>;
+  /** Optional customer-entered promotion code. When creating a new subscription, the code is applied to the Stripe Checkout session. For resume/add-payment-method flows (trialing/paused/past_due), the code is attached to the existing subscription so the first post-resume invoice reflects the discount. */
+  promotionCode: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateOrderItemsInput = {
@@ -135,6 +137,8 @@ export enum Separator {
 export type StartLibraryStripeSubscriptionTrialInput = {
   /** Which Stripe subscription billing period? "month" or "year" */
   billingPeriod: InputMaybe<Scalars['String']['input']>;
+  /** Optional customer-entered promotion code. Validated via Stripe and, if valid, applied to the trial subscription so the first invoice after trial end reflects the discount. */
+  promotionCode: InputMaybe<Scalars['String']['input']>;
 };
 
 export enum TextFormat {
@@ -156,6 +160,18 @@ export type UpdateOrderInput = {
   orderItems: InputMaybe<Array<InputMaybe<OrderItemInput>>>;
   orderVariableSelections: InputMaybe<Array<OrderVariableSelectionInput>>;
   stripePaymentMethodId: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateOrderTrackingInput = {
+  analyticsConsent: InputMaybe<Scalars['Boolean']['input']>;
+  anonymousId: InputMaybe<Scalars['String']['input']>;
+  fbc: InputMaybe<Scalars['String']['input']>;
+  fbp: InputMaybe<Scalars['String']['input']>;
+  url: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateWebfontDomainsInput = {
+  hosts: Array<Scalars['String']['input']>;
 };
 
 export type FontQueryVariables = Exact<{

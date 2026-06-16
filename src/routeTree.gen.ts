@@ -13,6 +13,7 @@ import { Route as TestFontsRouteImport } from './routes/test-fonts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FontsSlugRouteImport } from './routes/fonts.$slug'
 import { Route as ApiRevalidateRouteImport } from './routes/api.revalidate'
+import { Route as ApiPreviewRouteImport } from './routes/api.preview'
 
 const TestFontsRoute = TestFontsRouteImport.update({
   id: '/test-fonts',
@@ -34,16 +35,23 @@ const ApiRevalidateRoute = ApiRevalidateRouteImport.update({
   path: '/api/revalidate',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPreviewRoute = ApiPreviewRouteImport.update({
+  id: '/api/preview',
+  path: '/api/preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/test-fonts': typeof TestFontsRoute
+  '/api/preview': typeof ApiPreviewRoute
   '/api/revalidate': typeof ApiRevalidateRoute
   '/fonts/$slug': typeof FontsSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/test-fonts': typeof TestFontsRoute
+  '/api/preview': typeof ApiPreviewRoute
   '/api/revalidate': typeof ApiRevalidateRoute
   '/fonts/$slug': typeof FontsSlugRoute
 }
@@ -51,20 +59,33 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/test-fonts': typeof TestFontsRoute
+  '/api/preview': typeof ApiPreviewRoute
   '/api/revalidate': typeof ApiRevalidateRoute
   '/fonts/$slug': typeof FontsSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/test-fonts' | '/api/revalidate' | '/fonts/$slug'
+  fullPaths:
+    | '/'
+    | '/test-fonts'
+    | '/api/preview'
+    | '/api/revalidate'
+    | '/fonts/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/test-fonts' | '/api/revalidate' | '/fonts/$slug'
-  id: '__root__' | '/' | '/test-fonts' | '/api/revalidate' | '/fonts/$slug'
+  to: '/' | '/test-fonts' | '/api/preview' | '/api/revalidate' | '/fonts/$slug'
+  id:
+    | '__root__'
+    | '/'
+    | '/test-fonts'
+    | '/api/preview'
+    | '/api/revalidate'
+    | '/fonts/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   TestFontsRoute: typeof TestFontsRoute
+  ApiPreviewRoute: typeof ApiPreviewRoute
   ApiRevalidateRoute: typeof ApiRevalidateRoute
   FontsSlugRoute: typeof FontsSlugRoute
 }
@@ -99,12 +120,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRevalidateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/preview': {
+      id: '/api/preview'
+      path: '/api/preview'
+      fullPath: '/api/preview'
+      preLoaderRoute: typeof ApiPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   TestFontsRoute: TestFontsRoute,
+  ApiPreviewRoute: ApiPreviewRoute,
   ApiRevalidateRoute: ApiRevalidateRoute,
   FontsSlugRoute: FontsSlugRoute,
 }
@@ -113,10 +142,11 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

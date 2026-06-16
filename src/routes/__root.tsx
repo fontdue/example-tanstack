@@ -8,8 +8,6 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
-import { createServerFn } from '@tanstack/react-start'
-import { setResponseHeaders } from '@tanstack/react-start/server'
 import FontdueProvider, { loadFontdueProviderQuery } from 'fontdue-js/FontdueProvider'
 import StoreModal from 'fontdue-js/StoreModal'
 import CartButton from 'fontdue-js/CartButton'
@@ -20,25 +18,6 @@ import { fetchGraphql } from '../lib/graphql'
 import RootLayoutDoc from '../queries/RootLayout.graphql?raw'
 import type { RootLayoutQuery } from '../queries/operations-types'
 
-// CDN-side caching for SSR pages on Netlify. The edge serves cached
-// HTML instantly while regenerating in the background, so the page
-// feels static (sub-100ms TTFB) without prerendering. Browsers always
-// revalidate (`max-age=0`) so users see whatever the edge currently
-// holds. Tag every page with `fontdue` so /api/revalidate can purge
-// them all at once when Fontdue data changes. The api/revalidate
-// route overrides this with `Cache-Control: no-store` on its own
-// response object.
-const setCdnCacheHeaders = createServerFn({ method: 'GET' }).handler(
-  async () => {
-    setResponseHeaders({
-      'Netlify-CDN-Cache-Control':
-        'public, max-age=0, s-maxage=300, stale-while-revalidate=86400',
-      'Cache-Control': 'public, max-age=0, must-revalidate',
-      'Netlify-Cache-Tag': 'fontdue',
-    } as never)
-  },
-)
-
 export const Route = createRootRoute({
   // The root loader is the SSR data layer — equivalent to Astro's
   // frontmatter or RR7's root `loader`. fontdue-js Relay preloads and
@@ -46,11 +25,14 @@ export const Route = createRootRoute({
   // round-trip's worth of latency for the whole layout. The fontdue
   // payloads commit into the client Relay env on hydration; the
   // GraphQL data drives the static chrome (logo, nav, footer,
-  // settings). The server-only header call is sequenced alongside the
-  // fetches via Promise.all to keep latency flat.
+  // settings). In preview both reveal unpublished fonts automatically —
+  // preview rides the ambient context set by the global request
+  // middleware (src/start.ts), so nothing is threaded here.
+  //
+  // CDN cache headers (and the no-store rewrite for preview) are applied
+  // once for every page by that same middleware, not per loader.
   loader: async () => {
-    const [, fontduePreload, layoutData] = await Promise.all([
-      setCdnCacheHeaders(),
+    const [fontduePreload, layoutData] = await Promise.all([
       loadFontdueProviderQuery(),
       fetchGraphql<RootLayoutQuery>('RootLayout', RootLayoutDoc),
     ])
