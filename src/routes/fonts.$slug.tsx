@@ -14,7 +14,10 @@ import type {
 
 // Server-preloaded fontdue-js queries hydrate the islands; the GraphQL
 // fetch supplies the page chrome (title, description, hero image, buy
-// button props). All four run in parallel in one Promise.all.
+// button props). All four run in parallel in one Promise.all. In preview
+// this page resolves even for an unpublished collection and its islands
+// reveal unpublished styles — preview rides the ambient context set by
+// the global request middleware (src/start.ts), so nothing is threaded here.
 export const Route = createFileRoute('/fonts/$slug')({
   loader: async ({ params }) => {
     const [

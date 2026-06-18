@@ -8,7 +8,9 @@ import type { IndexQuery } from '../queries/operations-types'
 // The route loader is the SSR data layer: a regular GraphQL fetch and
 // the fontdue-js Relay preloads run together in one Promise.all. The
 // Relay payloads hydrate the islands without an extra round-trip; the
-// GraphQL data drives the static markup of the page.
+// GraphQL data drives the static markup of the page. In preview, both
+// reveal unpublished fonts automatically — preview rides the ambient
+// context set by the global request middleware (src/start.ts).
 export const Route = createFileRoute('/')({
   loader: async () => {
     const indexData = await fetchGraphql<IndexQuery>('Index', IndexDoc)

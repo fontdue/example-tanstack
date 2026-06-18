@@ -7,6 +7,9 @@ import NewsletterSignup, {
 } from 'fontdue-js/NewsletterSignup'
 
 export const Route = createFileRoute('/test-fonts')({
+  // This page only preloads fontdue-js components. When an admin is previewing,
+  // these reveal unpublished fonts too — preview rides the ambient context set
+  // by the global request middleware (src/start.ts), so nothing is threaded here.
   loader: async () => {
     const [testFontsPreload, newsletterPreload] = await Promise.all([
       loadTestFontsFormQuery(),
