@@ -5,7 +5,7 @@ import { handlePreviewRequest } from 'fontdue-js/preview'
 // admins by <FontdueProvider> — POSTs a short-lived token here to turn preview
 // on, and DELETEs to turn it off. handlePreviewRequest sets the preview cookies
 // (an httpOnly token + a readable marker that the toolbar checks); the global
-// request middleware (src/start.ts) wraps each request in runWithPreview, which
+// request middleware (src/start.ts) wraps each request in runWithFontdue, which
 // forwards the token to GraphQL and keeps preview pages out of the shared CDN
 // cache so the public never sees unpublished fonts.
 //
