@@ -4,6 +4,8 @@ import CharacterViewer, {
   loadCharacterViewerQuery,
 } from 'fontdue-js/CharacterViewer'
 import BuyButton, { loadBuyButtonQuery } from 'fontdue-js/BuyButton'
+import { FontduePasswordProtectedError } from 'fontdue-js/server'
+import NodePasswordForm from 'fontdue-js/NodePasswordForm'
 
 import { fetchGraphql } from '../lib/graphql'
 import FontDoc from '../queries/Font.graphql?raw'
@@ -20,24 +22,31 @@ import type {
 // the global request middleware (src/start.ts), so nothing is threaded here.
 export const Route = createFileRoute('/fonts/$slug')({
   loader: async ({ params }) => {
-    const [
-      fontData,
-      typeTestersPreload,
-      characterViewerPreload,
-      buyButtonPreload,
-    ] = await Promise.all([
-      fetchGraphql<FontQuery, FontQueryVariables>('Font', FontDoc, {
-        slug: params.slug,
-      }),
-      loadTypeTestersQuery({ collectionSlug: params.slug }),
-      loadCharacterViewerQuery({ collectionSlug: params.slug }),
-      loadBuyButtonQuery({ collectionSlug: params.slug }),
-    ])
+    let fontData, typeTestersPreload, characterViewerPreload, buyButtonPreload
+    try {
+      ;[fontData, typeTestersPreload, characterViewerPreload, buyButtonPreload] =
+        await Promise.all([
+          fetchGraphql<FontQuery, FontQueryVariables>('Font', FontDoc, {
+            slug: params.slug,
+          }),
+          loadTypeTestersQuery({ collectionSlug: params.slug }),
+          loadCharacterViewerQuery({ collectionSlug: params.slug }),
+          loadBuyButtonQuery({ collectionSlug: params.slug }),
+        ])
+    } catch (error) {
+      // The collection is password-protected and the visitor hasn't unlocked
+      // it. Render the password form instead of a 404 — it exists, it's gated.
+      if (error instanceof FontduePasswordProtectedError) {
+        return { locked: true as const, slug: params.slug }
+      }
+      throw error
+    }
 
     const collection = fontData.viewer.slug?.fontCollection
     if (!collection) throw notFound()
 
     return {
+      locked: false as const,
       collection,
       typeTestersPreload,
       characterViewerPreload,
@@ -45,6 +54,11 @@ export const Route = createFileRoute('/fonts/$slug')({
     }
   },
   head: ({ loaderData }) => {
+    if (loaderData?.locked) {
+      return {
+        meta: [{ title: 'Password required — fontdue-js on TanStack Start' }],
+      }
+    }
     const collection = loaderData?.collection
     const title =
       collection?.pageMetadata?.title ?? collection?.name ?? 'Font detail'
@@ -54,12 +68,26 @@ export const Route = createFileRoute('/fonts/$slug')({
 })
 
 function FontDetail() {
+  const data = Route.useLoaderData()
+
+  if (data.locked) {
+    return (
+      <>
+        <h1 className="my-2 mb-4 text-6xl leading-none">Password required</h1>
+        <p className="mb-6 text-lg text-gray-700">
+          This collection is password-protected. Enter the password to view it.
+        </p>
+        <NodePasswordForm collectionSlug={data.slug} />
+      </>
+    )
+  }
+
   const {
     collection,
     typeTestersPreload,
     characterViewerPreload,
     buyButtonPreload,
-  } = Route.useLoaderData()
+  } = data
 
   const feature = collection.featureStyle
   const featureSrc = feature?.webfontSources?.find(

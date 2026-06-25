@@ -41,10 +41,16 @@ export const previewMiddleware = createMiddleware({ type: 'request' }).server(
       .get('content-type')
       ?.includes('text/html')
 
-    // Only public, non-preview HTML gets the long-lived CDN cache. Preview
-    // responses were already marked uncacheable by runWithPreview.
+    // Only public HTML gets the long-lived CDN cache. runWithPreview already
+    // marked per-visitor responses (admin preview, or a collection this visitor
+    // unlocked via the node-access cookie) `no-store`; don't override that, or an
+    // unlocked render could be cached and served to someone who hasn't unlocked.
+    const uncacheable = response.headers
+      .get('cache-control')
+      ?.includes('no-store')
     if (
       !previewing &&
+      !uncacheable &&
       response.status === 200 &&
       isHtml &&
       !url.pathname.startsWith('/api/')
