@@ -48,9 +48,20 @@ jobs:
   # Dependabot opens fontdue-js bumps (see .github/dependabot.yml). `needs: build`
   # is what makes merging them unattended safe -- without it this would merge a
   # release that doesn't compile against this framework.
+  #
+  # The repository_owner check keeps unattended merges scoped to the fontdue
+  # org. If you cloned this repo as a starting point for your own site, you
+  # still get Dependabot's fontdue-js update PRs and the build check above,
+  # but nothing lands on your main branch without you. If you'd like updates
+  # to merge themselves once they build -- say your site deploys from main and
+  # you want font releases to flow through unattended -- change 'fontdue' to
+  # your own GitHub username or org.
   automerge:
     needs: build
-    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.repository_owner == 'fontdue'
     runs-on: ubuntu-latest
     permissions:
       contents: write
